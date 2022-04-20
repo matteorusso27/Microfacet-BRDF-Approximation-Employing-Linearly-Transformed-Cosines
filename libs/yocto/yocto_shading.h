@@ -44,6 +44,14 @@
 #include "yocto_math.h"
 #include "yocto_sampling.h"
 
+// ADDED FOR LTC FIT
+const int d = 128;
+extern float lut_tab[d*d*d];
+#include <glm/glm.hpp>
+using namespace glm;
+#include "functions_ltc.h"
+#include "LTC.h"
+
 // -----------------------------------------------------------------------------
 // USING DIRECTIVES
 // -----------------------------------------------------------------------------
@@ -414,11 +422,20 @@ inline float microfacet_distribution(
   if (cosine <= 0) return 0;
   auto roughness2 = roughness * roughness;
   auto cosine2    = cosine * cosine;
+  /*
+  printf("Parametri Distribution\n");
+  printf("Cosine2: %f\n", cosine2);
+  printf("roughness2: %f\n", roughness2);
+  printf("Valore ggx: %f\n", roughness2 / (pif * (cosine2 * roughness2 + 1 - cosine2) *
+                            (cosine2 * roughness2 + 1 - cosine2)));
+  printf("Valore no ggx: %f\n", std::exp((cosine2 - 1) / (roughness2 * cosine2)) /
+           (pif * roughness2 * cosine2 * cosine2));
+           */
   if (ggx) {
     return roughness2 / (pif * (cosine2 * roughness2 + 1 - cosine2) *
                             (cosine2 * roughness2 + 1 - cosine2));
   } else {
-    return exp((cosine2 - 1) / (roughness2 * cosine2)) /
+    return std::exp((cosine2 - 1) / (roughness2 * cosine2)) /
            (pif * roughness2 * cosine2 * cosine2);
   }
 }
@@ -616,7 +633,7 @@ inline float sample_glossy_pdf(const vec3f& color, float ior, float roughness,
 }
 
 // Evaluate a metal BRDF lobe.
-inline vec3f eval_reflective(const vec3f& color, float roughness,
+inline vec3f eval_reflective_1(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
   if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
   auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
@@ -626,9 +643,239 @@ inline vec3f eval_reflective(const vec3f& color, float roughness,
   auto D = microfacet_distribution(roughness, up_normal, halfway);
   auto G = microfacet_shadowing(
       roughness, up_normal, halfway, outgoing, incoming);
-  return F * D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
+    printf("Incoming: %f,%f,%f\n",incoming.x,incoming.y,incoming.z);
+    printf("Outgoing: %f,%f,%f\n",outgoing.x,outgoing.y,outgoing.z);
+    printf("Normal: %f,%f,%f\n",normal.x,normal.y,normal.z);
+    printf("Halfway: %f,%f,%f\n",halfway.x,halfway.y,halfway.z);
+    printf("Roughness: %f\n",roughness);
+    printf("D: %f\n",D);
+    printf("G: %f\n",G);
+    printf("Tutto tranne F: %f\n",D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
+         yocto::abs(dot(up_normal, incoming)));
+    printf("F: %f,%f,%f\n",F.x,F.y,F.z);
+  auto res =  F * D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
          abs(dot(up_normal, incoming));
+  printf("Risultato: %f,%f,%f\n***\n",res.x,res.y,res.z);
+  return res;
 }
+
+inline vec3f eval_reflective_noFresnel(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+  if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+  auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+  auto halfway   = normalize(incoming + outgoing);
+  //auto F         = fresnel_conductor(
+  //            reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
+  auto D = microfacet_distribution(roughness, up_normal, halfway);
+  auto G = microfacet_shadowing(
+      roughness, up_normal, halfway, outgoing, incoming);
+  //return F * 
+  return vec3f{1,1,1}*D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
+         yocto::abs(dot(up_normal, incoming));
+}
+
+
+inline float interp_4d(const float lut[], const vec4f& uvwx) {
+  const int LUT_SIZE = 64;
+
+  // get coordinates normalized
+  float s = uvwx.x * (LUT_SIZE - 1);
+  float t = uvwx.y * (LUT_SIZE - 1);
+  float r = uvwx.z * (LUT_SIZE - 1);
+  float q = uvwx.w * (LUT_SIZE - 1);
+
+  // get image coordinates and residuals
+  int   i = (int)s, j = (int)t, k = (int)r, l = (int)q;
+  int   ii = min(i + 1, LUT_SIZE - 1);
+  int   jj = min(j + 1, LUT_SIZE - 1);
+  int   kk = min(k + 1, LUT_SIZE - 1);
+  int   ll = min(l + 1, LUT_SIZE - 1);
+  float u = s - i, v = t - j, w = r - k, x = q - l;
+
+  // trilinear interpolation
+  int size2 = LUT_SIZE * LUT_SIZE;
+  int size3 = size2 * LUT_SIZE;
+
+  return lut[l * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
+             (1 - w) * (1 - x) +
+         lut[l * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) *
+             (1 - w) * (1 - x) +
+         lut[l * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v *
+             (1 - w) * (1 - x) +
+         lut[l * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
+             w * (1 - x) +
+         lut[l * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w *
+             (1 - x) +
+         lut[l * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w *
+             (1 - x) +
+         lut[l * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) *
+             (1 - x) +
+         lut[l * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w *
+             (1 - x) +
+         lut[ll * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
+             (1 - w) * x +
+         lut[ll * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) *
+             (1 - w) * x +
+         lut[ll * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v *
+             (1 - w) * x +
+         lut[ll * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
+             w * x +
+         lut[ll * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w *
+             x +
+         lut[ll * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w *
+             x +
+         lut[ll * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) *
+             x +
+         lut[ll * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w * x;
+}
+
+inline float interpolate3d(const float lut[], const vec3f& uvw) {
+  // get coordinates normalized
+  const int ALBEDO_LUT_SIZE = 128;
+  auto s = uvw.x * (ALBEDO_LUT_SIZE - 1);
+  auto t = uvw.y * (ALBEDO_LUT_SIZE - 1);
+  auto r = uvw.z * (ALBEDO_LUT_SIZE - 1);
+
+  // get image coordinates and residuals
+  auto i = (int)s, j = (int)t, k = (int)r;
+  auto ii = min(i + 1, ALBEDO_LUT_SIZE - 1);
+  auto jj = min(j + 1, ALBEDO_LUT_SIZE - 1);
+  auto kk = min(k + 1, ALBEDO_LUT_SIZE - 1);
+  auto u = s - i, v = t - j, w = r - k;
+
+  // trilinear interpolation
+  auto size2 = ALBEDO_LUT_SIZE * ALBEDO_LUT_SIZE;
+
+  return lut[k * size2 + j * ALBEDO_LUT_SIZE + i] * (1 - u) * (1 - v) *
+             (1 - w) +
+         lut[k * size2 + j * ALBEDO_LUT_SIZE + ii] * u * (1 - v) * (1 - w) +
+         lut[k * size2 + jj * ALBEDO_LUT_SIZE + i] * (1 - u) * v * (1 - w) +
+         lut[kk * size2 + j * ALBEDO_LUT_SIZE + i] * (1 - u) * (1 - v) * w +
+         lut[kk * size2 + jj * ALBEDO_LUT_SIZE + i] * (1 - u) * v * w +
+         lut[kk * size2 + j * ALBEDO_LUT_SIZE + ii] * u * (1 - v) * w +
+         lut[k * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * (1 - w) +
+         lut[kk * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * w;
+}
+
+inline vec3f eval_ggx_reflective_and_sample_tab(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+      
+  float theta_in = atan2(incoming.y, incoming.x);
+  float theta_out = atan2(outgoing.y, outgoing.x);
+  
+  float phi_in  = atan2(sqrt(incoming.x * incoming.x + incoming.y*incoming.y),incoming.z);
+  float phi_out = atan2(sqrt(outgoing.x * outgoing.x + outgoing.y*outgoing.y),outgoing.z);
+
+  if (phi_in < 0) phi_in = phi_in + 2*pif;
+  if (phi_out < 0) phi_out = phi_out +  2*pif;
+
+  float phi = (phi_in - phi_out);
+
+  float u   = clamp(theta_out / (pif / 2),1.f,0.f);
+  float v   = clamp(theta_in / (pif / 2),1.f,0.f);
+  float w   = clamp(phi_in / (2 * pif),1.f,0.f);
+  auto res = interp_4d(lut_tab, {u, v, w, roughness});
+
+  return vec3f{res,res,res};
+}
+/*
+inline vec3f eval_ltc(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+  
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+    auto basis           =      frame_fromzx({0,0,1},normal,outgoing);
+    auto incoming_p      =      transform_direction_inverse(basis,incoming);
+    auto outgoing_p      =      transform_direction_inverse(basis,outgoing);
+ // auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+  auto halfway   = normalize(incoming_p + outgoing_p);
+
+  //float theta_in = acos(incoming_p.z);
+  //float theta_out = acos(outgoing_p.z);
+  float theta_in = atan2(sqrt(incoming_p.x*incoming_p.x + incoming_p.y*incoming_p.y),incoming_p.z);
+  float theta_out = atan2(sqrt(outgoing_p.x*outgoing_p.x + outgoing_p.y*outgoing_p.y),outgoing_p.z);
+
+  float phi_in  = atan2(incoming_p.y,incoming_p.x);
+  float phi_out  = atan2(outgoing_p.y,outgoing_p.x);
+
+  if (phi_in < 0) phi_in = phi_in + 2*pif;
+  if (phi_out < 0) phi_out = phi_out +  2*pif;
+
+  float phi = std::abs(phi_in - phi_out);
+  
+  auto theta_out_norm = theta_out / (pif / 2);
+  auto theta_in_norm =  theta_in / (pif / 2);
+  auto phi_in_norm =  phi_in / (2 * pif);
+/*
+  if(theta_out_norm < 0 || theta_out_norm > 1 || theta_in_norm < 0 || theta_in_norm > 1 || phi_in_norm < 0 ||
+  phi_in_norm > 1){
+    printf("Theta Out: %f\n", theta_out_norm);
+    printf("Theta In: %f\n",theta_in_norm);
+    printf("Phi In: %f\n***\n", phi_in_norm);
+  }
+  */
+ /*
+  float u   = std::clamp(theta_out_norm, 0.f,1.f);
+  float v   = std::clamp(theta_in_norm,0.f,1.f);
+  float w   = std::clamp(phi_in_norm,0.f,1.f);
+  auto res = interpolate3d(lut_tab, {u, v, w});
+
+ 
+  //printf("Valore ggx_diretta: %f,%f,%f\n", standard_ggx.x,standard_ggx.y,standard_ggx.z);
+  //printf("Valore ggx_tab con Fresnel: %f,%f,%f\n***\n",ggx_tab_Fresnel.x,ggx_tab_Fresnel.y,ggx_tab_Fresnel.z);
+  //printf("Valore ltc con Fresnel: %f,%f,%f\n***\n",ltc_res.x,ltc_res.y,ltc_res.z);
+  //return {res,res,res};
+  auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
+  return vec3f{res,res,res};
+  
+}
+*/
+// **
+
+// **
+inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+     
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+          //auto N = dot(normal, outgoing) <= 0 ? -normal : normal;
+          //auto halfway   = normalize(incoming + outgoing);
+          auto basis           =      frame_fromz({0,0,1},normal);
+          auto outgoing_transformed      =      transform_direction_inverse(basis,outgoing);
+          auto incoming_transformed      =      transform_direction_inverse(basis,incoming);
+          
+          roughness = sqrt(roughness);
+
+          //following presentation for theta
+          float x = dot(incoming,outgoing);
+          float y = abs(x);
+
+          float a = 5.42031 + (3.12829 + 0.0902326 *y)*y;
+          float b = 3.45068 + (4.18814 + y )*y;
+          float theta_sintheta = a/b;
+          if (x < 0.0){
+            theta_sintheta = pi*sqrt(1.0 - x*x) - theta_sintheta;
+          }
+          auto u = cross(outgoing,incoming);
+          float res = theta_sintheta * dot(u,normal);
+          
+          float theta_out = atan2(sqrt(outgoing_transformed.x*outgoing_transformed.x + outgoing_transformed.y*outgoing_transformed.y),outgoing_transformed.z);
+          float theta_in = atan2(sqrt(incoming.x*incoming.x + incoming.y*incoming.y),incoming.z);
+          auto look_up_theta = acos(dot({0,0,1},outgoing));
+          mat3 M = M_GGX(look_up_theta,roughness);
+				
+					LTC ltc;
+					ltc.M = M;
+					ltc.invM = glm::inverse(M);
+					ltc.detM = std::abs(glm::determinant(M));
+					ltc.amplitude = amplitude_GGX(look_up_theta,roughness);
+					//float max_value = ltc.computeMaxValue();
+          //float max_value = 1.f;
+					float value = ltc.eval_pre(outgoing);
+          //auto F         = fresnel_conductor(
+          //    reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
+          return {value,value,value};
+    }
 
 // Sample a metal BRDF lobe.
 inline vec3f sample_reflective(const vec3f& color, float roughness,
