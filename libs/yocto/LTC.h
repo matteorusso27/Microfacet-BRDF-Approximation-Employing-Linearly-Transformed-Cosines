@@ -94,7 +94,7 @@ struct LTC {
  inline float computeMaxValue() {
   float max_value = 0.0;
 
-  const int Nsample = 64;
+  const int Nsample = 16;
   for (int j = 0; j < Nsample; ++j)
     for (int i = 0; i < Nsample; ++i) {
       const float U1 = (i + 0.5f) / (float)Nsample;

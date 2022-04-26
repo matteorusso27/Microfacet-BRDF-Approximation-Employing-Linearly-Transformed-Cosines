@@ -186,8 +186,11 @@ static vec3f eval_bsdfcos(const material_point& material, const vec3f& normal,
     return eval_glossy(material.color, material.ior, material.roughness, normal,
         outgoing, incoming);
   } else if (material.type == material_type::reflective) {
-    return eval_ltc_manually(material.color,material.roughness,normal,outgoing,incoming);
+    //return eval_ltc_manually(material.color,material.roughness,normal,outgoing,incoming);
+    return eval_brdf_LTC_tab(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_reflective_1(material.color,material.roughness,normal,outgoing,incoming);
+    //return eval_brdf_mitsuba(material.color,material.roughness,normal,outgoing,incoming);
+
   } else if (material.type == material_type::transparent) {
     return eval_transparent(material.color, material.ior, material.roughness,
         normal, outgoing, incoming);
