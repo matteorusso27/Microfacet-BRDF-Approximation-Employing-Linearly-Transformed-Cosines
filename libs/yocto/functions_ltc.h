@@ -27,3 +27,12 @@ inline float amplitude_GGX(const float theta, const float alpha) {
   return tabAmplitude[a + t * dim];
 }
 
+inline mat3 M_GGX_inv(const float theta, const float alpha) {
+  int t = std::max<int>(
+      0, std::min<int>(dim - 1,
+             (int)floorf(theta / (0.5f * 3.14159f) * dim)));
+  int a = std::max<int>(
+      0, std::min<int>(dim - 1, (int)floorf(sqrtf(alpha) * dim)));
+
+  return tabMinv[a + t * dim];
+}

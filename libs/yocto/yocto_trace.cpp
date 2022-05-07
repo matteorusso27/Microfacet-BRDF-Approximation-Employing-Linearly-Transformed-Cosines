@@ -47,7 +47,6 @@
 
 // ADDED FOR LTC FIT
 //ADDED 
-
 //float tab_ltc[64*64*64*64];
 // -----------------------------------------------------------------------------
 // PARALLEL HELPERS
@@ -186,11 +185,11 @@ static vec3f eval_bsdfcos(const material_point& material, const vec3f& normal,
     return eval_glossy(material.color, material.ior, material.roughness, normal,
         outgoing, incoming);
   } else if (material.type == material_type::reflective) {
-    //return eval_ltc_manually(material.color,material.roughness,normal,outgoing,incoming);
-    return eval_brdf_LTC_tab(material.color,material.roughness,normal,outgoing,incoming);
+    //return eval_GGX(material.color,outgoing,incoming,material.roughness,normal);
     //return eval_reflective_1(material.color,material.roughness,normal,outgoing,incoming);
-    //return eval_brdf_mitsuba(material.color,material.roughness,normal,outgoing,incoming);
-
+    return eval_ltc_manually(material.color,material.roughness,normal,outgoing,incoming);
+    //return eval_brdf_mitsuba_MS_manually(material.color,material.roughness,normal,outgoing,incoming);
+    
   } else if (material.type == material_type::transparent) {
     return eval_transparent(material.color, material.ior, material.roughness,
         normal, outgoing, incoming);
@@ -1423,11 +1422,13 @@ static trace_result trace_furnace(const scene_data& scene, const trace_bvh& bvh,
     // next direction
     auto incoming = vec3f{0, 0, 0};
     if (material.roughness != 0) {
+
       incoming = sample_bsdfcos(
           material, normal, outgoing, rand1f(rng), rand2f(rng));
       if (incoming == vec3f{0, 0, 0}) break;
       weight *= eval_bsdfcos(material, normal, outgoing, incoming) /
                 sample_bsdfcos_pdf(material, normal, outgoing, incoming);
+
     } else {
       incoming = sample_delta(material, normal, outgoing, rand1f(rng));
       if (incoming == vec3f{0, 0, 0}) break;

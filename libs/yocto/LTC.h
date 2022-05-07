@@ -66,15 +66,7 @@ struct LTC {
     float D = 1.0f / 3.14159f * glm::max<float>(0.0f, Loriginal.z);
 
     float res = amplitude * D / Jacobian;
-/*
-    printf("Loriginal: %f,%f,%f\n", Loriginal.x,Loriginal.y,Loriginal.z);
-    printf("L_: %f,%f,%f\n", L_.x,L_.y,L_.z);
-    printf("l: %f\n", l);
-    printf("Jacobian: %f\n", Jacobian);
-    printf("D: %f\n", D);
-    printf("amplitude: %f\n", amplitude);
-    printf("res: %f\n***\n", res);
-   */
+
     return res;
   }
 
