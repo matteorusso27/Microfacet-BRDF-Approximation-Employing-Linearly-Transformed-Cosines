@@ -47,8 +47,9 @@
 
 // ADDED FOR LTC FIT
 const int d = 64;
-//extern float lut_tab[d*d*d*d];
-//extern float lut_tab[d*d*d*d];
+
+extern float lut_tab[d*d*d*d];
+
 #include <glm/glm.hpp>
 using namespace glm;
 #include "functions_ltc.h"
@@ -645,63 +646,49 @@ inline vec3f eval_reflective_1(const vec3f& color, float roughness,
 }
 
 
-inline float interp_4d(const float lut[], const vec4f& uvwx) {
-  const int LUT_SIZE = 64;
+inline float interpolate4d_(const float lut[], const vec4f &uvwx)
+	{
+		const int LUT_SIZE = 64;
 
-  // get coordinates normalized
-  float s = uvwx.x * (LUT_SIZE - 1);
-  float t = uvwx.y * (LUT_SIZE - 1);
-  float r = uvwx.z * (LUT_SIZE - 1);
-  float q = uvwx.w * (LUT_SIZE - 1);
+		// get coordinates normalized
+		float s = uvwx.x * (LUT_SIZE - 1);
+		float t = uvwx.y * (LUT_SIZE - 1);
+		float r = uvwx.z * (LUT_SIZE - 1);
+		float q = uvwx.w * (LUT_SIZE - 1);
 
-  // get image coordinates and residuals
-  int   i = (int)s, j = (int)t, k = (int)r, l = (int)q;
-  int   ii = min(i + 1, LUT_SIZE - 1);
-  int   jj = min(j + 1, LUT_SIZE - 1);
-  int   kk = min(k + 1, LUT_SIZE - 1);
-  int   ll = min(l + 1, LUT_SIZE - 1);
-  float u = s - i, v = t - j, w = r - k, x = q - l;
+		// get image coordinates and residuals
+		int i = (int)s, j = (int)t, k = (int)r, l = (int)q;
+		int ii = glm::min(i + 1, LUT_SIZE - 1);
+		int jj = glm::min(j + 1, LUT_SIZE - 1);
+		int kk = glm::min(k + 1, LUT_SIZE - 1);
+		int ll = glm::min(l + 1, LUT_SIZE - 1);
+		float u = s - i, v = t - j, w = r - k, x = q - l;
 
-  // trilinear interpolation
-  int size2 = LUT_SIZE * LUT_SIZE;
-  int size3 = size2 * LUT_SIZE;
+		// trilinear interpolation
+		int size2 = LUT_SIZE * LUT_SIZE;
+		int size3 = size2 * LUT_SIZE;
 
-  return lut[l * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
-             (1 - w) * (1 - x) +
-         lut[l * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) *
-             (1 - w) * (1 - x) +
-         lut[l * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v *
-             (1 - w) * (1 - x) +
-         lut[l * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
-             w * (1 - x) +
-         lut[l * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w *
-             (1 - x) +
-         lut[l * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w *
-             (1 - x) +
-         lut[l * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) *
-             (1 - x) +
-         lut[l * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w *
-             (1 - x) +
-         lut[ll * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
-             (1 - w) * x +
-         lut[ll * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) *
-             (1 - w) * x +
-         lut[ll * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v *
-             (1 - w) * x +
-         lut[ll * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) *
-             w * x +
-         lut[ll * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w *
-             x +
-         lut[ll * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w *
-             x +
-         lut[ll * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) *
-             x +
-         lut[ll * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w * x;
-}
+		return lut[l * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) * (1 - w) * (1 - x) +
+			   lut[l * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) * (1 - w) * (1 - x) +
+			   lut[l * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v * (1 - w) * (1 - x) +
+			   lut[l * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) * w * (1 - x) +
+			   lut[l * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w * (1 - x) +
+			   lut[l * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w * (1 - x) +
+			   lut[l * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) * (1 - x) +
+			   lut[l * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w * (1 - x) +
+			   lut[ll * size3 + k * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) * (1 - w) * x +
+			   lut[ll * size3 + k * size2 + j * LUT_SIZE + ii] * u * (1 - v) * (1 - w) * x +
+			   lut[ll * size3 + k * size2 + jj * LUT_SIZE + i] * (1 - u) * v * (1 - w) * x +
+			   lut[ll * size3 + kk * size2 + j * LUT_SIZE + i] * (1 - u) * (1 - v) * w * x +
+			   lut[ll * size3 + kk * size2 + jj * LUT_SIZE + i] * (1 - u) * v * w * x +
+			   lut[ll * size3 + kk * size2 + j * LUT_SIZE + ii] * u * (1 - v) * w * x +
+			   lut[ll * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) * x +
+			   lut[ll * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w * x;
+	}
 
 inline float interpolate3d(const float lut[], const vec3f& uvw) {
   // get coordinates normalized
-  const int ALBEDO_LUT_SIZE = 64;
+  const int ALBEDO_LUT_SIZE = 256;
   auto s = uvw.x * (ALBEDO_LUT_SIZE - 1);
   auto t = uvw.y * (ALBEDO_LUT_SIZE - 1);
   auto r = uvw.z * (ALBEDO_LUT_SIZE - 1);
@@ -726,52 +713,96 @@ inline float interpolate3d(const float lut[], const vec3f& uvw) {
          lut[k * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * (1 - w) +
          lut[kk * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * w;
 }
-/*
-inline vec3f eval_ggx_reflective_and_sample_tab(const vec3f& color, float roughness,
-    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
-      
-  float theta_in = atan2(incoming.y, incoming.x);
-  float theta_out = atan2(outgoing.y, outgoing.x);
-  
-  float phi_in  = atan2(sqrt(incoming.x * incoming.x + incoming.y*incoming.y),incoming.z);
-  float phi_out = atan2(sqrt(outgoing.x * outgoing.x + outgoing.y*outgoing.y),outgoing.z);
+// **
+ inline vec3f eval_GGX(const vec3f& color,const vec3f& V_, const vec3f& L_, const float alpha, const vec3f& N_) 
+	{
+    
+    auto brdf_frame           =      inverse(basis_fromz(N_));
+    auto L      =      transform_direction(brdf_frame,L_);
+    auto V      =      transform_direction(brdf_frame,V_);
+    auto up_normal = dot(N_, V) <= 0 ? -N_ : N_;
+		if(V.z <= 0)
+		{
+			return {0,0,0};
+		}
 
-  if (phi_in < 0) phi_in = phi_in + 2*pif;
-  if (phi_out < 0) phi_out = phi_out +  2*pif;
+		// masking
+		const float a_V = 1.0f / alpha / tanf(acosf(V.z));
+		const float LambdaV = (V.z<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_V/a_V)) : 0.0f;
+		const float G1 = 1.0f / (1.0f + LambdaV);
 
-  float phi = (phi_in - phi_out);
+		// shadowing
+		float G2;
+		if(L.z <= 0.0f)
+			G2 = 0;
+		else
+		{
+			const float a_L = 1.0f / alpha / tanf(acosf(L.z));
+			const float LambdaL = (L.z<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_L/a_L)) : 0.0f;
+			G2 = 1.0f / (1.0f + LambdaV + LambdaL);
+		}
 
-  float u   = clamp(theta_out / (pif / 2),1.f,0.f);
-  float v   = clamp(theta_in / (pif / 2),1.f,0.f);
-  float w   = clamp(phi_in / (2 * pif),1.f,0.f);
-  auto res = interp_4d(lut_tab, {u, v, w, roughness});
+		// D
+		const vec3f H = normalize(V+L);
+		const float slopex = H.x/H.z;
+		const float slopey = H.y/H.z;
+		float D = 1.0f / (1.0f + (slopex*slopex+slopey*slopey)/alpha/alpha);
+		D = D*D;
+		D = D / (3.14159f * alpha * alpha * H.z*H.z*H.z*H.z);
 
-  return vec3f{res,res,res};
-}
-*/
-/*
+		float res = D * G2 / 4.0f / V.z;
+
+    //
+    auto halfway = H;
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, L);
+    return res*F;
+    //
+
+    auto res_ = res * abs(dot(up_normal, L));
+    
+		return res_*F;
+	}
+
 inline vec3f eval_brdf_tab(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
-  
+    
     if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
     auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+
     auto brdf_frame           =      inverse(basis_fromz(normal));
     auto in      =      transform_direction(brdf_frame,incoming);
     auto out      =      transform_direction(brdf_frame,outgoing);
     
-    float theta_in = in.z;
-    float theta_out = out.z;
-  
-    float phi_in  = atan2(in.y,in.x);
+    //if (in.z < 0) return {0,0,0};
+
+	  float phi_in  = atan2(in.y,in.x);
     float phi_out = atan2(out.y,out.x);
 
-    float phi = abs(phi_in - phi_out)/(2 * pif);
+    float phi = abs(phi_in - phi_out);
 
-    auto res = interp_4d(lut_tab, {theta_out,theta_in,phi,roughness});
-    auto res_ = res * abs(dot(up_normal, incoming));
-    return res_*color;
+		float theta_in = (in.z);
+		float theta_out = (out.z);
+
+		float u = theta_in/(pif/2);
+		float v = theta_out/(pif/2);
+		float w = phi / (2*pif);
+
+		float res = interpolate4d_(lut_tab, {v,u,w,roughness});
+		//float res = interpolate3d(lut_tab, {theta_out, theta_in, w}); //-- ok per 3D!
+    //auto res = eval_GGX(color,outgoing,incoming,roughness,normal).x;
+    //BrdfGGXMultiscatter brdf;
+    //auto out_t = vec3(out.x,out.y,out.z);
+    //auto in_t = vec3(in.x,in.y,in.z);
+    //auto res = brdf.eval_conductor(out_t,in_t,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
+
+
+    auto halfway = normalize(in+out);
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in);
+    return res*F;
 }
-*/
+
 /*
 inline vec3f eval_brdf_mitsuba(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
@@ -817,7 +848,10 @@ inline vec3f eval_brdf_mitsuba_SS_manually(const vec3f& color, float roughness,
 
     auto r = brdf.eval_conductor_ss(out,in,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
    // auto res_cos = r * abs((dot(up_normal, incoming))*abs(dot(up_normal,outgoing)));
-    return vec3f{r,r,r}; 
+    auto halfway = normalize(out_y+in_y);
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in_y);
+    return r*F;
 }
 
 inline vec3f eval_brdf_mitsuba_MS_manually(const vec3f& color, float roughness,
@@ -829,64 +863,20 @@ inline vec3f eval_brdf_mitsuba_MS_manually(const vec3f& color, float roughness,
     auto in_y      =      transform_direction(brdf_frame,incoming);
     auto out_y      =      transform_direction(brdf_frame,outgoing);
 
-
     BrdfGGXMultiscatter brdf;
     auto out = vec3(out_y.x,out_y.y,out_y.z);
     auto in = vec3(in_y.x,in_y.y,in_y.z);
-    auto halfway = normalize(incoming + outgoing);
-    float r = brdf.eval_conductor(out,in,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),10240).x;
+    auto halfway = normalize(in_y + out_y);
+    float r = brdf.eval_conductor(out,in,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
    
     auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
-    
-    auto r_cos = vec3f{r,r,r};
-    return r_cos;
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in_y);
+
+    return r*F;
 }
 
 
-// **
- inline vec3f eval_GGX(const vec3f& color,const vec3f& V_, const vec3f& L_, const float alpha, const vec3f& N_) 
-	{
-    auto up_normal = dot(N_, V_) <= 0 ? -N_ : N_;
-    auto brdf_frame           =      inverse(basis_fromz(N_));
-    auto L      =      transform_direction(brdf_frame,L_);
-    auto V      =      transform_direction(brdf_frame,V_);
-		if(V.z <= 0)
-		{
-			return {0,0,0};
-		}
 
-		// masking
-		const float a_V = 1.0f / alpha / tanf(acosf(V.z));
-		const float LambdaV = (V.z<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_V/a_V)) : 0.0f;
-		const float G1 = 1.0f / (1.0f + LambdaV);
-
-		// shadowing
-		float G2;
-		if(L.z <= 0.0f)
-			G2 = 0;
-		else
-		{
-			const float a_L = 1.0f / alpha / tanf(acosf(L.z));
-			const float LambdaL = (L.z<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_L/a_L)) : 0.0f;
-			G2 = 1.0f / (1.0f + LambdaV + LambdaL);
-		}
-
-		// D
-		const vec3f H = normalize(V+L);
-		const float slopex = H.x/H.z;
-		const float slopey = H.y/H.z;
-		float D = 1.0f / (1.0f + (slopex*slopex+slopey*slopey)/alpha/alpha);
-		D = D*D;
-		D = D / (3.14159f * alpha * alpha * H.z*H.z*H.z*H.z);
-
-		float res = D * G2 / 4.0f / V.z;
-    auto res_ = res * abs(dot(up_normal, L));
-    auto halfway = H;
-    auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, L);
-		return res_*F;
-	}
 // ** 
 /*
 inline vec3f eval_brdf_LTC_tab(const vec3f& color, float roughness,
@@ -917,77 +907,113 @@ inline vec3f eval_brdf_LTC_tab(const vec3f& color, float roughness,
 inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
 
-    //GGX, eval reflective LTC
+    // eval reflective LTC
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+    auto brdf_frame           =      inverse(basis_fromz(normal));
+    auto in      =      transform_direction(brdf_frame,incoming);
+    auto out      =      transform_direction(brdf_frame,outgoing);
+    auto halfway = normalize(in+out);
 
-    auto brdf_frame = basis_fromz(vec3f{0,0,1});
-    //auto in      =      transform_direction(brdf_frame,incoming);
-    //auto out      =     transform_direction(brdf_frame,outgoing);
+    float phi_in  = atan2(in.y,in.x);
+    float phi_out = atan2(out.y,out.x);
 
-    float phi_out = atan2(outgoing.y,outgoing.x);
-    auto temp = sqrt(outgoing.x*outgoing.x + outgoing.y*outgoing.y);
-		float theta_out = atan2(temp,outgoing.z);
+    float phi = abs(phi_in - phi_out);
 
-    float phi_in = atan2(incoming.y, incoming.x);
-    auto temp1 = sqrt(incoming.x*incoming.x + incoming.y*incoming.y);
-    float theta_in = atan2(temp1,incoming.z);
+		float theta_in = (in.z);
+		float theta_out =(out.z);
 
-		if (phi_in < 0) phi_in = phi_in + 2 * pif;
-		if (phi_out < 0) phi_out = phi_out + 2 * pif;
-
-    float phi_diff = abs(phi_in - phi_out);
-
-    auto in = vec3f{sin(theta_in) *cos(phi_in), sin(theta_in) * sin(phi_in), cos(theta_in)};
-		auto out = vec3f{sin(theta_out) * cos(phi_diff), sin(theta_out) * sin(phi_diff), cos(theta_out)};
-
-    in      =      transform_direction(brdf_frame,in);
-    out      =     transform_direction(brdf_frame,out);
-    /*
-    auto h = normalize(in+out);
-
-    auto theta_h = (h.z);
-    auto phi_h = atan2(h.y,h.x);
-
-    auto mat_normal = mat3f();
-    mat_normal.x = vec3f{0,-normal.z,normal.y};
-    mat_normal.y = vec3f{normal.z,0,-normal.x};
-    mat_normal.z = vec3f{-normal.y,normal.x,0};
+		auto in_t = vec3(in.x,in.y,in.z);			
     
-    auto I = mat3f();
-
-    //mat_normal = transpose(mat_normal);
-
-    auto R_matrix_phi = I + mat_normal*sin(-phi_h) + mat_normal*mat_normal*(1-cos(-phi_h));
-    auto R_matrix_theta= I + mat_normal*sin(-theta_h) + mat_normal*mat_normal*(1-cos(-theta_h));
-
-    auto d = (in*R_matrix_phi)*R_matrix_theta;
-
-    in = h;
-    out = d;
-
-    //if (out.z < 0) return {0,0,0};
-    */
-   
-    auto look_up_theta = acos(out.z);
-    mat3 M = M_GGX(look_up_theta,roughness);
-  
+    auto to_look = (theta_out);
+		
+    
+    mat3 M = M_GGX(to_look,roughness);
+    mat3 invM = M_GGX_inv(to_look,roughness);
     LTC ltc;
     ltc.M = M;
-    ltc.invM = M_GGX_inv(look_up_theta,roughness);
-    ltc.detM = std::abs(glm::determinant(M));
-    ltc.amplitude = amplitude_GGX(look_up_theta,roughness);
-
-    float value = ltc.eval_pre(incoming);
+    ltc.invM = invM;
+    ltc.detM = abs(glm::determinant(M));
+    //ltc.detM = 1.f;
+    //ltc.amplitude = amplitude_GGX(to_look,roughness);
+    auto inn_t = vec3(incoming.x,incoming.y,incoming.z);		
+    auto ii = normalize(inn_t*M);
+    //float max_value = ltc.computeMaxValue();
+    float max_value = 1;
+    float value = ltc.eval(ii)/max_value;
     
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in);
+
+     /*
     printf("Incoming: %f,%f,%f\n",incoming.x,incoming.y,incoming.z);
     printf("Outgoing: %f,%f,%f\n",outgoing.x,outgoing.y,outgoing.z);
     printf("Transformed:\n");
     printf("In: %f,%f,%f\n",in.x,in.y,in.z);
     printf("Out: %f,%f,%f\n",out.x,out.y,out.z);
+    printf("to look: %f\n",to_look);
     printf("Value of ltc: %f",value);
     printf("\n***\n");
-    
+    */
+    return value*F;
 
-    return vec3f{value,value,value};
+}
+
+inline vec3f eval_ltc_manually_change_variables(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+
+    // eval reflective LTC
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+    auto brdf_frame           =      inverse(basis_fromz(normal));
+    auto in      =      transform_direction(brdf_frame,incoming);
+    auto out      =      transform_direction(brdf_frame,outgoing);
+    auto halfway = normalize(in+out);
+
+    float phi_in  = atan2(in.y,in.x);
+    float phi_out = atan2(out.y,out.x);
+    float phi_h = atan2(halfway.y,halfway.x);
+
+    float phi = abs(phi_in - phi_out);
+
+		float theta_in = (in.z);
+		float theta_out = (out.z);
+    float theta_h = (halfway.z);
+
+/*
+    auto q = quat4f();
+    q.w = cos(-phi_h/2);
+    q.x = normal.x*sin(-phi_h/2);
+    q.y = normal.y*sin(-phi_h/2);
+    q.z = normal.z*sin(-phi_h/2);
+
+    auto q_conj = conjugate(q);
+
+    auto first_rot = q*in*q_conj;
+*/
+    auto first_rot = rotation_quat(in,phi_h);
+
+		auto in_t = vec3(halfway.x,halfway.y,halfway.z);			
+    
+    auto to_look = (first_rot.z);
+					
+    mat3 M = M_GGX(to_look,roughness);
+    
+    LTC ltc;
+    ltc.M = M;
+    ltc.invM = M_GGX_inv(to_look,roughness);
+    ltc.detM = std::abs(glm::determinant(M));
+    
+    ltc.amplitude = amplitude_GGX(to_look,roughness);
+
+    //float max_value = ltc_.computeMaxValue();
+    float max_value = 1;
+    float value = ltc.eval(in_t)/max_value;
+    
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in);
+
+    return value*F;
     }
 
 // Sample a metal BRDF lobe.
