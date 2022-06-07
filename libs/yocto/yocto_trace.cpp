@@ -40,6 +40,7 @@
 #include "yocto_sampling.h"
 #include "yocto_shading.h"
 #include "yocto_shape.h"
+//#include "functions_ltc.h"
 
 #ifdef YOCTO_DENOISE
 #include <OpenImageDenoise/oidn.hpp>
@@ -185,16 +186,18 @@ static vec3f eval_bsdfcos(const material_point& material, const vec3f& normal,
     return eval_glossy(material.color, material.ior, material.roughness, normal,
         outgoing, incoming);
   } else if (material.type == material_type::reflective) {
-    
+    //return {0,0,0};
     //return eval_GGX(material.color,outgoing,incoming,material.roughness,normal);
-    //return eval_reflective_1(material.color,material.roughness,normal,outgoing,incoming);
+    return eval_reflective_1(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_ltc_manually(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_ltc_manually_change_variables(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_brdf_mitsuba_MS_manually(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_brdf_mitsuba_SS_manually(material.color,material.roughness,normal,outgoing,incoming);
-    return eval_brdf_tab(material.color,material.roughness,normal,outgoing,incoming);
+    //return eval_brdf_tab(material.color,material.roughness,normal,outgoing,incoming);
   
-  } else if (material.type == material_type::transparent) {
+  }
+  
+  else if (material.type == material_type::transparent) {
     return eval_transparent(material.color, material.ior, material.roughness,
         normal, outgoing, incoming);
   } else if (material.type == material_type::refractive) {
@@ -271,7 +274,6 @@ static vec3f sample_bsdfcos(const material_point& material, const vec3f& normal,
     return sample_glossy(material.color, material.ior, material.roughness,
         normal, outgoing, rnl, rn);
   } else if (material.type == material_type::reflective) {
-    
     return sample_reflective(
         material.color, material.roughness, normal, outgoing, rn);
   } else if (material.type == material_type::transparent) {
@@ -1426,18 +1428,14 @@ static trace_result trace_furnace(const scene_data& scene, const trace_bvh& bvh,
 
     // next direction
     auto incoming = vec3f{0, 0, 0};
-
     if (material.roughness != 0) {
+      incoming = sample_bsdfcos(material, normal, outgoing, rand1f(rng), rand2f(rng));
       
-      incoming = sample_bsdfcos(
-          material, normal, outgoing, rand1f(rng), rand2f(rng));
       if (incoming == vec3f{0, 0, 0}) break;
-      weight *= eval_bsdfcos(material, normal, outgoing, incoming) /
+        //LTC impl
+       weight *= eval_bsdfcos(material, normal, outgoing, incoming) /
                 sample_bsdfcos_pdf(material, normal, outgoing, incoming);
-    
-    weight *= eval_bsdfcos(material, normal, outgoing, incoming) /
-                sample_bsdfcos_pdf(material, normal, outgoing, incoming);
-
+     
     } else {
       incoming = sample_delta(material, normal, outgoing, rand1f(rng));
       if (incoming == vec3f{0, 0, 0}) break;

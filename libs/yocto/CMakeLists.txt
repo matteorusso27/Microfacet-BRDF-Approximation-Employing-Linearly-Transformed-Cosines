@@ -12,6 +12,12 @@ add_library(yocto STATIC
   yocto_gui.h yocto_gui.cpp
   yocto_cutrace.h yocto_cutrace.cpp
   yocto_parallel.h yocto_cli.h
+  tab00.cpp
+  tab20.cpp
+  tab11.cpp
+  tab02.cpp
+  tabAmp.cpp
+  test_GGX.cpp
 )
 
 set_target_properties(yocto PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
