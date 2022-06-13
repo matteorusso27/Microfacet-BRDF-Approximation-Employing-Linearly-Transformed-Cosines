@@ -50,11 +50,11 @@ const int d = 64;
 const int d_interp = 64;
 extern float lut_tab[d*d*d*d];
 
+
 extern float tab00[d_interp*d_interp];
 extern float tab02[d_interp*d_interp];
 extern float tab11[d_interp*d_interp];
 extern float tab20[d_interp*d_interp];
- 
 extern float tabAmp[d_interp*d_interp];
 
 #include <glm/glm.hpp>
@@ -341,18 +341,48 @@ inline float interpolate2d(const float lut[], const vec2f& uv) {
 inline mat3f interpolation_M(float theta, float roughness){
 
   auto uv = vec2f{theta/(pif/2),roughness};
-
+  //auto uv = vec2f{roughness,theta/(pif/2)};
+  
   float m00 = interpolate2d(tab00,uv); 
   float m02 = interpolate2d(tab02,uv); 
   float m11 = interpolate2d(tab11,uv); 
   float m20 = interpolate2d(tab20,uv);
-
+  
   auto M = mat3f{{m00,0,m02},
                   {0,m11,0},
                   {m20,0,1}};
-  return M;
+  
+  return transpose(M);
+  return (M);
 }
 
+inline float interpolate3d(const float lut[], const vec3& uvw){ 
+  // get coordinates normalized
+  const int ALBEDO_LUT_SIZE = 64;
+  auto s = uvw.x * (ALBEDO_LUT_SIZE - 1);
+  auto t = uvw.y * (ALBEDO_LUT_SIZE - 1);
+  auto r = uvw.z * (ALBEDO_LUT_SIZE - 1);
+
+  // get image coordinates and residuals
+  auto i = (int)s, j = (int)t, k = (int)r;
+  auto ii = glm::min(i + 1, ALBEDO_LUT_SIZE - 1);
+  auto jj = glm::min(j + 1, ALBEDO_LUT_SIZE - 1);
+  auto kk = glm::min(k + 1, ALBEDO_LUT_SIZE - 1);
+  auto u = s - i, v = t - j, w = r - k;
+
+  // trilinear interpolation
+  auto size2 = ALBEDO_LUT_SIZE * ALBEDO_LUT_SIZE;
+
+  return lut[k * size2 + j * ALBEDO_LUT_SIZE + i] * (1 - u) * (1 - v) *
+             (1 - w) +
+         lut[k * size2 + j * ALBEDO_LUT_SIZE + ii] * u * (1 - v) * (1 - w) +
+         lut[k * size2 + jj * ALBEDO_LUT_SIZE + i] * (1 - u) * v * (1 - w) +
+         lut[kk * size2 + j * ALBEDO_LUT_SIZE + i] * (1 - u) * (1 - v) * w +
+         lut[kk * size2 + jj * ALBEDO_LUT_SIZE + i] * (1 - u) * v * w +
+         lut[kk * size2 + j * ALBEDO_LUT_SIZE + ii] * u * (1 - v) * w +
+         lut[k * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * (1 - w) +
+         lut[kk * size2 + jj * ALBEDO_LUT_SIZE + ii] * u * v * w;
+}
 // Check if on the same side of the hemisphere
 inline bool same_hemisphere(
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
@@ -635,20 +665,22 @@ inline float sample_LTC_pdf(const vec3f& color, float roughness,
   
     auto brdf_frame           =      inverse(basis_fromz(up_normal));
     auto in      =      transform_direction(brdf_frame,incoming);
+
     auto theta = dot(up_normal,outgoing);
-    
+
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
       
     auto M_ = tabM[(int)(a + t * dim)];
     auto amplitude = tabAmplitude[(int)(a + t * dim)];
 
-    /*
+    
     auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
-    */
-    auto M = interpolation_M(theta,roughness);
+    
+    
+    //auto M = interpolation_M(theta,roughness);
     auto invM = inverse(M);
     auto detM = abs(determinant(M));
 
@@ -660,7 +692,7 @@ inline float sample_LTC_pdf(const vec3f& color, float roughness,
     float l = length(L_);
     float Jacobian = detM /(l*l*l);
 
-  return sample_hemisphere_cos_pdf(Loriginal)/Jacobian;
+  return sample_hemisphere_cos_pdf(Loriginal)*Jacobian;
 }
 
 
@@ -718,7 +750,6 @@ inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
     auto out      =      transform_direction(brdf_frame,outgoing);
 
     auto theta = dot(up_normal,outgoing);
-    
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
       
@@ -726,17 +757,17 @@ inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
     
     auto invM_ = tabMinv[(int)(a + t * dim)];
     auto amplitude = tabAmplitude[(int)(a + t * dim)];
-
-    //amplitude = 1;
     
-    auto M_no_interp = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
+    
+    auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
-     
     
+    //amplitude = 1/amplitude;
+    //auto M = interpolation_M(theta,roughness);
+    //amplitude = interpolate2d(tabAmp,vec2f{theta/(pif/2),roughness}); //occhio a questo che lo switcho
+    if(amplitude >= 1) amplitude = 1.0;
     
-    auto M = interpolation_M(theta,roughness);
-    //auto amplitude = interpolate2d(tabAmp,vec2f{roughness,theta/(pif/2)}); //occhio a questo che lo switcho
     /*
     printf("No interp M:\n");
     printf("%f ",M_no_interp[0][0]);
@@ -773,39 +804,10 @@ inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
     float Jacobian = detM /(l*l*l);
 
     float D = 1.0f / pif * max(0.0f, Loriginal.z);
-    auto res = vec3f{1,1,1} * amplitude *D / Jacobian;
+    auto res = vec3f{1,1,1} * amplitude *D * Jacobian;
 
-    auto halfway   = normalize(in + out);
-
-    auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, in);
-    return res*color;
+    return res;
 }
-
-// Evaluate a metal BRDF lobe.
-inline vec3f eval_reflective_1(const vec3f& color, float roughness,
-    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
-
-      return eval_ltc_manually(color,roughness,normal,outgoing,incoming);
-
-
-
-
-  if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
-  auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
-  auto halfway   = normalize(incoming + outgoing);
-  auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
-  auto D = microfacet_distribution(roughness, up_normal, halfway);
-  auto G = microfacet_shadowing(
-      roughness, up_normal, halfway, outgoing, incoming);
-   
-  auto res =  F * D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
-         abs(dot(up_normal, incoming));
-  return res;
-}
-
-
 inline float interpolate4d_(const float lut[], const vec4f &uvwx)
 	{
 		const int LUT_SIZE = 64;
@@ -845,10 +847,114 @@ inline float interpolate4d_(const float lut[], const vec4f &uvwx)
 			   lut[ll * size3 + k * size2 + jj * LUT_SIZE + ii] * u * v * (1 - w) * x +
 			   lut[ll * size3 + kk * size2 + jj * LUT_SIZE + ii] * u * v * w * x;
 	}
+inline vec3f eval_brdf_tab(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+    
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+
+    auto brdf_frame           =      inverse(basis_fromz({up_normal}));
+    auto in      =      transform_direction(brdf_frame,incoming);
+    auto out      =      transform_direction(brdf_frame,outgoing);
+    
+    //if (in.z < 0) return {0,0,0};
+
+	  float phi_in  = atan2(in.y,in.x);
+    float phi_out = atan2(out.y,out.x);
+
+    float phi = abs(phi_in - phi_out);
+
+		float theta_in = acos(in.z);
+		float theta_out = acos(out.z);
+
+		float u = theta_out/(pif/2);
+		float v = theta_in/(pif/2);
+		float w = phi / (2*pif);
+
+		//float res = interpolate4d_(lut_tab, {u,v,w,roughness});
+		//float res = interpolate3d(lut_tab, {theta_out, theta_in, w}); //-- ok per 3D!
+		float res = interpolate3d(lut_tab, {u, v, w}); //--se non usi coseno
+    //auto res = eval_GGX(color,outgoing,incoming,roughness,normal).x;
+    //BrdfGGXMultiscatter brdf;
+    //auto out_t = vec3(out.x,out.y,out.z);
+    //auto in_t = vec3(in.x,in.y,in.z);
+    //auto res = brdf.eval_conductor(out_t,in_t,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
+
+    return res*vec3f{1,1,1};
+}
+
+inline vec3f eval_brdf_tab_inverted(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+    
+   if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+
+    auto brdf_frame           =      inverse(basis_fromz({up_normal}));
+    auto in      =      transform_direction(brdf_frame,incoming);
+    auto out      =      transform_direction(brdf_frame,outgoing);
+    
+    float theta_in = (in.z);
+		float theta_out = (out.z);
+
+	  float phi_in  = atan2(in.y,in.x);
+    float phi_out = atan2(out.y,out.x);
+
+    float phi = abs(phi_in - phi_out)/(2*pif);
+
+		//float res = interpolate3d(lut_tab, {theta_out, theta_in, phi}); --funziona
+		float res = interpolate4d_(lut_tab, {theta_out, theta_in, phi,roughness}); 
+ 
+    return res*vec3f{1,1,1};
+}
+inline vec3f eval_brdf_mitsuba_MS_manually(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+
+    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+    auto brdf_frame           =      inverse(basis_fromz(normal));
+    auto in_y      =      transform_direction(brdf_frame,incoming);
+    auto out_y      =      transform_direction(brdf_frame,outgoing);
+
+    BrdfGGXMultiscatter brdf;
+    auto out = vec3(out_y.x,out_y.y,out_y.z);
+    auto in = vec3(in_y.x,in_y.y,in_y.z);
+    auto halfway = normalize(in_y + out_y);
+    float r = brdf.eval_conductor(out,in,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
+   
+    auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, in_y);
+
+    return vec3f{1,1,1}*r;
+}
+// Evaluate a metal BRDF lobe.
+inline vec3f eval_reflective_1(const vec3f& color, float roughness,
+    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+      //return eval_brdf_mitsuba_MS_manually(color,roughness,normal,outgoing,incoming);
+      return eval_ltc_manually(color,roughness,normal,outgoing,incoming);
+      
+      //return eval_brdf_tab_inverted(color,roughness,normal,outgoing,incoming);
+      //return eval_brdf_tab(color,roughness,normal,outgoing,incoming);
+
+
+
+  if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
+  auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
+  auto halfway   = normalize(incoming + outgoing);
+  auto F         = fresnel_conductor(
+              reflectivity_to_eta(color), {0, 0, 0}, halfway, incoming);
+  auto D = microfacet_distribution(roughness, up_normal, halfway);
+  auto G = microfacet_shadowing(
+      roughness, up_normal, halfway, outgoing, incoming);
+   
+  auto res =  F * D * G / (4 * dot(up_normal, outgoing) * dot(up_normal, incoming)) *
+         abs(dot(up_normal, incoming));
+
+  return res;
+}
 
 inline float interpolate3d(const float lut[], const vec3f& uvw) {
   // get coordinates normalized
-  const int ALBEDO_LUT_SIZE = 256;
+  const int ALBEDO_LUT_SIZE = 64;
   auto s = uvw.x * (ALBEDO_LUT_SIZE - 1);
   auto t = uvw.y * (ALBEDO_LUT_SIZE - 1);
   auto r = uvw.z * (ALBEDO_LUT_SIZE - 1);
@@ -923,7 +1029,7 @@ inline float interpolate3d(const float lut[], const vec3f& uvw) {
     
 		return res_*F;
 	}
-
+/*
 inline vec3f eval_brdf_tab(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
     
@@ -957,13 +1063,9 @@ inline vec3f eval_brdf_tab(const vec3f& color, float roughness,
     //auto in_t = vec3(in.x,in.y,in.z);
     //auto res = brdf.eval_conductor(out_t,in_t,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
 
-
-    auto halfway = normalize(in+out);
-    auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, in);
     return res*vec3f{1,1,1};
 }
-
+*/
 /*
 inline vec3f eval_brdf_mitsuba(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
@@ -1014,28 +1116,6 @@ inline vec3f eval_brdf_mitsuba_SS_manually(const vec3f& color, float roughness,
               reflectivity_to_eta(color), {0, 0, 0}, halfway, in_y);
     return r*F;
 }
-
-inline vec3f eval_brdf_mitsuba_MS_manually(const vec3f& color, float roughness,
-    const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
-
-    if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return {0, 0, 0};
-    auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
-    auto brdf_frame           =      inverse(basis_fromz(normal));
-    auto in_y      =      transform_direction(brdf_frame,incoming);
-    auto out_y      =      transform_direction(brdf_frame,outgoing);
-
-    BrdfGGXMultiscatter brdf;
-    auto out = vec3(out_y.x,out_y.y,out_y.z);
-    auto in = vec3(in_y.x,in_y.y,in_y.z);
-    auto halfway = normalize(in_y + out_y);
-    float r = brdf.eval_conductor(out,in,roughness,roughness,vec3(0,0,0),vec3(0.999723,0.999723,0.999723),1024).x;
-   
-    auto F         = fresnel_conductor(
-              reflectivity_to_eta(color), {0, 0, 0}, halfway, in_y);
-
-    return r*F;
-}
-
 
 
 // ** 
@@ -1130,18 +1210,18 @@ inline vec3f sample_reflective_LTC(const vec3f& color, float roughness,
     if (dot(normal, outgoing) <= 0) return {0,0,0};
     auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
     auto theta = dot(normal,outgoing);
-    
+
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
 
     auto M_ = tabM[(int)(a + t * dim)];
-    /*
-    auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
+    
+       auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
-
-    */
-    auto M = interpolation_M(theta,roughness);
+    
+    
+    //auto M = interpolation_M(theta,roughness);
 
     auto world_frame           =      (basis_fromz(up_normal));
     auto w =  normalize(sample_hemisphere_cos(rn)*M);
@@ -1151,7 +1231,7 @@ inline vec3f sample_reflective_LTC(const vec3f& color, float roughness,
 // Sample a metal BRDF lobe.
 inline vec3f sample_reflective(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec2f& rn) {
-      return sample_reflective_LTC(color,roughness,normal,outgoing,rn);
+     return sample_reflective_LTC(color,roughness,normal,outgoing,rn);
 
 
 

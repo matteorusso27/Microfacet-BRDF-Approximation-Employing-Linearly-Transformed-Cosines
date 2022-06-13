@@ -11,13 +11,13 @@ add_library(yocto STATIC
   yocto_sceneio.h yocto_sceneio.cpp
   yocto_gui.h yocto_gui.cpp
   yocto_cutrace.h yocto_cutrace.cpp
-  yocto_parallel.h yocto_cli.h
-  tab00.cpp
-  tab20.cpp
-  tab11.cpp
-  tab02.cpp
-  tabAmp.cpp
-  test_GGX.cpp
+  yocto_parallel.h yocto_cli.h 
+  tab00GGX.cpp
+  tab02GGX.cpp
+  tab11GGX.cpp
+  tab20GGX.cpp
+  tabAmpGGX.cpp
+  MS_4D_cos.cpp
 )
 
 set_target_properties(yocto PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
