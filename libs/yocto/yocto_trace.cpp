@@ -194,9 +194,7 @@ static vec3f eval_bsdfcos(const material_point& material, const vec3f& normal,
     //return eval_brdf_mitsuba_MS_manually(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_brdf_mitsuba_SS_manually(material.color,material.roughness,normal,outgoing,incoming);
     //return eval_brdf_tab(material.color,material.roughness,normal,outgoing,incoming);
-  
-  }
-  
+  } 
   else if (material.type == material_type::transparent) {
     return eval_transparent(material.color, material.ior, material.roughness,
         normal, outgoing, incoming);
@@ -276,7 +274,7 @@ static vec3f sample_bsdfcos(const material_point& material, const vec3f& normal,
   } else if (material.type == material_type::reflective) {
     return sample_reflective(
         material.color, material.roughness, normal, outgoing, rn);
-  } else if (material.type == material_type::transparent) {
+    } else if (material.type == material_type::transparent) {
     return sample_transparent(material.color, material.ior, material.roughness,
         normal, outgoing, rnl, rn);
   } else if (material.type == material_type::refractive) {

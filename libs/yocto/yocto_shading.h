@@ -340,9 +340,15 @@ inline float interpolate2d(const float lut[], const vec2f& uv) {
 
 inline mat3f interpolation_M(float theta, float roughness){
 
-  auto uv = vec2f{theta/(pif/2),roughness};
-  //auto uv = vec2f{roughness,theta/(pif/2)};
+  //auto uv = vec2f{theta/(pif/2),sqrt(roughness)};
+  //auto uv = vec2f{sqrt(roughness),theta/(pif/2)};
+
+  //float t = std::max<float>(0, std::min<float>(dim - 1,(float)floorf(theta / (0.5f * 3.14159f) * dim)));
+  //float a = std::max<float>(0, std::min<float>(dim - 1, (float)floorf(sqrtf(roughness) * dim)));
   
+  float t = std::min((float)dim-1,theta/(pif/2)*dim);
+  float a = std::min((float)dim-1,sqrt(roughness)*dim);
+  auto uv = vec2f{theta,sqrt(roughness)};
   float m00 = interpolate2d(tab00,uv); 
   float m02 = interpolate2d(tab02,uv); 
   float m11 = interpolate2d(tab11,uv); 
@@ -352,7 +358,7 @@ inline mat3f interpolation_M(float theta, float roughness){
                   {0,m11,0},
                   {m20,0,1}};
   
-  return transpose(M);
+  
   return (M);
 }
 
@@ -665,20 +671,21 @@ inline float sample_LTC_pdf(const vec3f& color, float roughness,
   
     auto brdf_frame           =      inverse(basis_fromz(up_normal));
     auto in      =      transform_direction(brdf_frame,incoming);
+    auto out      =      transform_direction(brdf_frame,outgoing);
 
     auto theta = dot(up_normal,outgoing);
-
+    
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
       
     auto M_ = tabM[(int)(a + t * dim)];
-    auto amplitude = tabAmplitude[(int)(a + t * dim)];
 
     
     auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
     
+    //M = transpose(M);
     
     //auto M = interpolation_M(theta,roughness);
     auto invM = inverse(M);
@@ -750,6 +757,7 @@ inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
     auto out      =      transform_direction(brdf_frame,outgoing);
 
     auto theta = dot(up_normal,outgoing);
+
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
       
@@ -763,9 +771,14 @@ inline vec3f eval_ltc_manually(const vec3f& color, float roughness,
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
     
+    //M = transpose(M);
+    
     //amplitude = 1/amplitude;
+    
     //auto M = interpolation_M(theta,roughness);
-    //amplitude = interpolate2d(tabAmp,vec2f{theta/(pif/2),roughness}); //occhio a questo che lo switcho
+    
+    //amplitude = interpolate2d(tabAmp,vec2f{(theta / (0.5f * 3.14159f)),sqrtf(roughness)}); //occhio a questo che lo switcho
+    
     if(amplitude >= 1) amplitude = 1.0;
     
     /*
@@ -901,8 +914,8 @@ inline vec3f eval_brdf_tab_inverted(const vec3f& color, float roughness,
 
     float phi = abs(phi_in - phi_out)/(2*pif);
 
-		//float res = interpolate3d(lut_tab, {theta_out, theta_in, phi}); --funziona
-		float res = interpolate4d_(lut_tab, {theta_out, theta_in, phi,roughness}); 
+		//float res = interpolate3d(lut_tab, {theta_out, theta_in, phi}); //funziona
+		float res = interpolate4d_(lut_tab, {theta_out, theta_in, phi,roughness}); //SQRT MEGLIO
  
     return res*vec3f{1,1,1};
 }
@@ -929,9 +942,10 @@ inline vec3f eval_brdf_mitsuba_MS_manually(const vec3f& color, float roughness,
 // Evaluate a metal BRDF lobe.
 inline vec3f eval_reflective_1(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+      
+      //roughness = sqrtf(roughness);
       //return eval_brdf_mitsuba_MS_manually(color,roughness,normal,outgoing,incoming);
       return eval_ltc_manually(color,roughness,normal,outgoing,incoming);
-      
       //return eval_brdf_tab_inverted(color,roughness,normal,outgoing,incoming);
       //return eval_brdf_tab(color,roughness,normal,outgoing,incoming);
 
@@ -1209,17 +1223,22 @@ inline vec3f sample_reflective_LTC(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec2f& rn) {
     if (dot(normal, outgoing) <= 0) return {0,0,0};
     auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
-    auto theta = dot(normal,outgoing);
+     auto brdf_frame           =      inverse(basis_fromz(up_normal));
+    auto out      =      transform_direction(brdf_frame,outgoing);
 
+    auto theta = dot(normal,outgoing);
+    
     int t = std::max<int>(0, std::min<int>(dim - 1,(int)floorf(theta / (0.5f * 3.14159f) * dim)));
     int a = std::max<int>(0, std::min<int>(dim - 1, (int)floorf(sqrtf(roughness) * dim)));
 
     auto M_ = tabM[(int)(a + t * dim)];
     
-       auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
+    
+    auto M = mat3f{ {M_.m[0],M_.m[1],M_.m[2]},
                     {M_.m[3],M_.m[4],M_.m[5]},
                     {M_.m[6],M_.m[7],M_.m[8]}};
     
+    //M = transpose(M);
     
     //auto M = interpolation_M(theta,roughness);
 
@@ -1231,9 +1250,9 @@ inline vec3f sample_reflective_LTC(const vec3f& color, float roughness,
 // Sample a metal BRDF lobe.
 inline vec3f sample_reflective(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec2f& rn) {
-     return sample_reflective_LTC(color,roughness,normal,outgoing,rn);
-
-
+    //roughness = sqrtf(roughness);
+    return sample_reflective_LTC(color,roughness,normal,outgoing,rn);
+  
 
 
   auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
@@ -1245,8 +1264,9 @@ inline vec3f sample_reflective(const vec3f& color, float roughness,
 // Pdf for metal BRDF lobe sampling.
 inline float sample_reflective_pdf(const vec3f& color, float roughness,
     const vec3f& normal, const vec3f& outgoing, const vec3f& incoming) {
+      //roughness = sqrtf(roughness);
       return sample_LTC_pdf(color,roughness,normal,outgoing,incoming);
-
+  roughness = sqrtf(roughness);
       
   if (dot(normal, incoming) * dot(normal, outgoing) <= 0) return 0;
   auto up_normal = dot(normal, outgoing) <= 0 ? -normal : normal;
