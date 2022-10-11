@@ -15,14 +15,17 @@ In ”Real-Time Polygonal-Light Shading with Linearly Transformed Cosines” Hei
 The approximation proved convincing at high roughness values, with our model matching the behavior of Heitz et al's. algorithm. We compared our results with scenes rendered using the GGX-BRDF, and we found large improvements due to our energy conserving algorithm
 
 ![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r01.png)
+
 Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.10. The
 angle of incidence increases from left to right
 
 ![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r03.png)
+
 Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.30. The
 angle of incidence increases from left to right
 
 ![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r04.png)
+
 Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.40. The
 angle of incidence increases from left to right
 
@@ -41,6 +44,7 @@ energy is not lost or gained, the spheres blend in with the environment, resulti
 an energy-conserving model even at high roughness values.
 
 ![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/basic_furnace_comparison.png)
+
 Furnace test for conductors. Top row: no energy compensation. Middle row:
 energy compensation with the use of multiple scattering algorithm. Bottom row: energy
 compensation with the use of LTC approximation. Roughness increases from left to
