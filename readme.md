@@ -26,18 +26,6 @@ angle of incidence increases from left to right
 Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.40. The
 angle of incidence increases from left to right
 
-![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r05.png)
-Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.50. The
-angle of incidence increases from left to right
-
-![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r08.png)
-Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 0.80. The
-angle of incidence increases from left to right
-
-![alt_text](https://github.com/matteorusso27/Microfacet-BRDF-Approximation-Employing-Linearly-Transformed-Cosines/blob/main/fit_comparison_r10.png)
-Multiscattering BRDF (top) and LTC fit (bottom) for roughness: 1.0 The
-angle of incidence increases from left to right
-
 To evaluate our model, we based our results on the Furnace test, a sample scene in
 which we compute the Rendering Equation [ Kaj86] using a constant environment
 map. In order to have no energy loss or gain, the objects in the scene should present
